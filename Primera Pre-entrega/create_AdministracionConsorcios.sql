@@ -63,6 +63,7 @@ CREATE TABLE Reparaciones (
     id_reparacion INT AUTO_INCREMENT PRIMARY KEY,
     id_proveedor INT NOT NULL,
     id_consorcio INT NOT NULL,
+    fecha DATE NOT NULL,
     reparacion_comun BOOL NOT NULL,
     departamento VARCHAR(3),
     FOREIGN KEY (id_proveedor) REFERENCES Proveedores(id_proveedor),
