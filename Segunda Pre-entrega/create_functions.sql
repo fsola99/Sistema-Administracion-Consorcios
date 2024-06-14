@@ -2,7 +2,7 @@
 DELIMITER //
 
 -- Función para calcular las expensas de un propietario
-CREATE FUNCTION CalcularExpensasPropietario(
+CREATE FUNCTION funcion_calcular_expensas_propietario(
     total_expensas DECIMAL(10,2),
     porcentaje_fiscal DECIMAL(5,2)
 ) RETURNS DECIMAL(10,2)
@@ -12,7 +12,7 @@ BEGIN
 END //
 
 -- Función para calcular el total gastado en reparaciones del consorcio
-CREATE FUNCTION ObtenerTotalReparacionesConsorcio(consorcio_id INT) RETURNS DECIMAL(10,2)
+CREATE FUNCTION funcion_obtener_total_reparaciones_consorcio(consorcio_id INT) RETURNS DECIMAL(10,2)
 READS SQL DATA
 BEGIN
     DECLARE total DECIMAL(10,2);
@@ -32,7 +32,7 @@ BEGIN
 END //
 
 -- Función para obtener el total de expensas de todos los consorcios de un administrador
-CREATE FUNCTION ObtenerTotalExpensas(id_administrador INT) RETURNS DECIMAL(10,2)
+CREATE FUNCTION funcion_obtener_total_expensas_administrador(id_administrador INT) RETURNS DECIMAL(10,2)
 READS SQL DATA
 BEGIN
     DECLARE total DECIMAL(10,2);

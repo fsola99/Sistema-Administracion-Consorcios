@@ -1,8 +1,8 @@
 -- Creación de la base de datos
-CREATE DATABASE AdministracionConsorcios;
+CREATE DATABASE administracion_consorcios;
 
 -- Selección de la base de datos
-USE AdministracionConsorcios;
+USE administracion_consorcios;
 
 -- Creación de la tabla Administradores
 CREATE TABLE Administradores (
@@ -31,7 +31,7 @@ CREATE TABLE Consorcios (
     unidades_funcionales INT NOT NULL,
     id_administrador INT NOT NULL,
     id_encargado INT NOT NULL,
-    expensas_total DECIMAL(10,2) NOT NULL,
+    expensas_total DECIMAL(10,2) NOT NULL DEFAULT 0,
     FOREIGN KEY (id_administrador) REFERENCES Administradores(id_administrador),
     FOREIGN KEY (id_encargado) REFERENCES Encargados(id_encargado)
 );
@@ -47,7 +47,7 @@ CREATE TABLE Propietarios (
     departamento VARCHAR(3),
     id_consorcio INT NOT NULL,
     unidad_funcional INT NOT NULL,
-    expensas DECIMAL(10,2) NOT NULL,
+    expensas DECIMAL(10,2) NOT NULL DEFAULT 0,
     porcentaje_fiscal DECIMAL(5,2) NOT NULL,
     FOREIGN KEY (id_consorcio) REFERENCES Consorcios(id_consorcio)
 );

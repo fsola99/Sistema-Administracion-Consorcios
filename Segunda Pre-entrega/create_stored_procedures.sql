@@ -1,30 +1,8 @@
 -- Creación de Stored Procedures
 DELIMITER //
 
--- SP para la inserción de un nuevo propietario.
-CREATE PROCEDURE InsertarNuevoPropietario(
-    IN nombre VARCHAR(50),
-    IN apellido VARCHAR(50),
-    IN direccion VARCHAR(75),
-    IN telefono VARCHAR(12),
-    IN email VARCHAR(50),
-    IN id_consorcio INT,
-    IN unidad_funcional INT,
-    IN departamento VARCHAR(3),
-    IN porcentaje_fiscal DECIMAL(5,2)
-)
-BEGIN
-    DECLARE expensas DECIMAL(10,2);
-    SELECT (expensas_total * porcentaje_fiscal / 100) INTO expensas
-    FROM Consorcios
-    WHERE id_consorcio = id_consorcio;
-
-    INSERT INTO Propietarios (nombre, apellido, direccion, telefono, email, id_consorcio, unidad_funcional, departamento, expensas, porcentaje_fiscal)
-    VALUES (nombre, apellido, direccion, telefono, email, id_consorcio, unidad_funcional, departamento, expensas, porcentaje_fiscal);
-END //
-
 -- SP para actualizar el salario de un encargado específico.
-CREATE PROCEDURE ActualizarSalarioEncargado(
+CREATE PROCEDURE sp_actualizar_salario_encargado(
     IN id_encargado INT,
     IN nuevo_salario DECIMAL(10,2)
 )
@@ -34,22 +12,40 @@ BEGIN
     WHERE id_encargado = id_encargado;
 END //
 
--- Nuevo SP para actualizar el total de expensas de un consorcio
-CREATE PROCEDURE ActualizarExpensasConsorcio(
-    IN id_consorcio INT,
+-- SP para actualizar el total de expensas de un consorcio
+CREATE PROCEDURE sp_actualizar_expensas_consorcio(
+    IN id_consorcio_param INT,
     IN nuevas_expensas_total DECIMAL(10,2)
 )
 BEGIN
-    UPDATE Consorcios
-    SET expensas_total = nuevas_expensas_total
-    WHERE id_consorcio = id_consorcio;
+    -- Variable para almacenar el total de expensas
+    DECLARE total_expensas DECIMAL(10,2);
 
-    CALL RecalcularExpensasPropietarios(id_consorcio);
+    -- Obtener el total de expensas del consorcio
+    SELECT expensas_total INTO total_expensas
+    FROM Consorcios
+    WHERE id_consorcio = id_consorcio_param;
+    -- LIMIT 1;
+
+    -- Verificar si se encontró un resultado
+    IF total_expensas IS NOT NULL THEN
+        -- Actualizar el total de expensas del consorcio
+        UPDATE Consorcios
+        SET expensas_total = nuevas_expensas_total
+        WHERE id_consorcio = id_consorcio_param;
+
+        -- Llamar a la función para recalcular las expensas de los propietarios
+        CALL sp_actualizar_expensas_propietarios(id_consorcio_param);
+    ELSE
+        -- Si no se encontró ningún consorcio con ese id, mostrar un mensaje o manejar el error según sea necesario
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se encontró ningún consorcio con el ID especificado.';
+    END IF;
 END //
 
 -- SP para recalcular las expensas de cada propietario en un consorcio
-CREATE PROCEDURE RecalcularExpensasPropietarios(
-    IN id_consorcio INT
+CREATE PROCEDURE sp_actualizar_expensas_propietarios(
+    IN id_consorcio_param INT
 )
 BEGIN
     DECLARE total_expensas DECIMAL(10,2);
@@ -57,12 +53,13 @@ BEGIN
     -- Obtener el total de expensas del consorcio
     SELECT expensas_total INTO total_expensas
     FROM Consorcios
-    WHERE id_consorcio = id_consorcio;
+    WHERE id_consorcio = id_consorcio_param;
+    -- LIMIT 1;
 
     -- Actualizar las expensas de cada propietario usando la función
     UPDATE Propietarios
-    SET expensas = CalcularExpensasPropietario(total_expensas, porcentaje_fiscal)
-    WHERE id_consorcio = id_consorcio;
+    SET expensas = funcion_calcular_expensas_propietario(total_expensas, porcentaje_fiscal)
+    WHERE id_consorcio = id_consorcio_param;
 END //
 
 DELIMITER ;
