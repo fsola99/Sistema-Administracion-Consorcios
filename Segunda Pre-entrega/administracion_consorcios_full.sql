@@ -343,10 +343,11 @@ BEGIN
     WHERE id_consorcio = NEW.id_consorcio;
 
     -- Calcular la cuota parte del propietario
-    SET cuota_parte_propietario = NEW.porcentaje_fiscal / 100;
+    -- SET cuota_parte_propietario = NEW.porcentaje_fiscal / 100;
 
     -- Calcular las expensas del propietario
-    SET NEW.expensas = total_expensas * cuota_parte_propietario;
+    -- SET NEW.expensas = total_expensas * cuota_parte_propietario;
+    SET NEW.expensas = funcion_calcular_expensas_propietario(total_expensas, NEW.porcentaje_fiscal);
 END //
 
 -- Trigger para actualizar las expensas totales de un consorcio al momento de agregarse una reparacion asociada al mismo
