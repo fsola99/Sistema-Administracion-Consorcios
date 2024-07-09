@@ -30,7 +30,6 @@ CREATE TABLE Consorcios (
     unidades_funcionales INT NOT NULL,
     id_administrador INT NOT NULL,
     id_encargado INT NOT NULL,
-    expensas_total DECIMAL(10,2) NOT NULL DEFAULT 0,
     FOREIGN KEY (id_administrador) REFERENCES Administradores(id_administrador),
     FOREIGN KEY (id_encargado) REFERENCES Encargados(id_encargado)
 );
@@ -89,14 +88,9 @@ CREATE TABLE h_Gastos (
 -- Creación de la tabla de hechos de Expensas
 CREATE TABLE h_Expensas (
     id_expensa INT AUTO_INCREMENT PRIMARY KEY,
-    id_propietario INT NOT NULL,
-    id_consorcio INT NOT NULL,
-    unidad_funcional INT NOT NULL,
     monto_expensas DECIMAL(10,2) NOT NULL,
-    fecha DATE NOT NULL,
-    pagada BOOL NOT NULL DEFAULT false,
-    FOREIGN KEY (id_propietario) REFERENCES Propietarios(id_propietario),
-    FOREIGN KEY (id_consorcio) REFERENCES Consorcios(id_consorcio)
+    fecha_vencimiento DATE NOT NULL,
+    pagada BOOL NOT NULL DEFAULT false
 );
 
 -- Creación de la tabla de hechos de Reclamos
@@ -119,4 +113,13 @@ CREATE TABLE Expensas_por_Propietario (
     id_propietario INT,
     FOREIGN KEY (id_expensa) REFERENCES h_Expensas(id_expensa),
     FOREIGN KEY (id_propietario) REFERENCES Propietarios(id_propietario)
+);
+
+-- Creación de la tabla intermedia que contiene las Expensas de cada Consorcio
+CREATE TABLE Expensas_por_Consorcio (
+	id_expensa_por_consorcio INT AUTO_INCREMENT PRIMARY KEY,
+    id_expensa INT,
+    id_consorcio INT,
+    FOREIGN KEY (id_expensa) REFERENCES h_Expensas(id_expensa),
+    FOREIGN KEY (id_consorcio) REFERENCES Consorcios(id_consorcio)
 );
