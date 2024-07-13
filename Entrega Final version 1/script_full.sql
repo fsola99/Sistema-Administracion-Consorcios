@@ -497,3 +497,212 @@ JOIN
     Consorcios c ON ec.id_consorcio = c.id_consorcio
 ORDER BY 
     c.id_consorcio, e.fecha_vencimiento DESC;
+    
+-- Creación de Stored Procedures.
+DELIMITER //
+
+-- Stored Procedure principal para insercion de una expensa de un consorcio, insertando entrada en h_Expensas y Expensas_por_Consorcio.
+CREATE PROCEDURE sp_insertar_expensa_consorcio(
+    IN consorcio_id INT,
+    IN monto_expensas DECIMAL(10,2),
+    IN fecha_vencimiento DATE
+)
+BEGIN
+    DECLARE nueva_expensa_id INT;
+
+    -- Insertar nueva expensa para el consorcio
+    INSERT INTO h_Expensas (monto_expensas, fecha_vencimiento, pagada)
+    VALUES (monto_expensas, fecha_vencimiento, FALSE);
+
+    -- Obtener el id de la nueva expensa insertada
+    SET nueva_expensa_id = LAST_INSERT_ID();
+
+    -- Insertar en Expensas_por_Consorcio
+    INSERT INTO Expensas_por_Consorcio (id_expensa, id_consorcio)
+    VALUES (nueva_expensa_id, consorcio_id);
+    
+END //
+
+-- Stored Procedure para crear las expensas de un propietario, insertando entrada en h_Expensas y Expensas_por_Propietario.
+CREATE PROCEDURE sp_insertar_expensa_propietario(
+    IN propietario_id INT,
+    IN fecha_vencimiento DATE,
+    IN monto_expensas DECIMAL(10,2)
+)
+BEGIN
+    DECLARE new_expensa_id INT;
+
+    -- Insertar nueva expensa para el propietario
+    INSERT INTO h_Expensas (monto_expensas, fecha_vencimiento, pagada)
+    VALUES (monto_expensas, fecha_vencimiento, FALSE);
+
+    -- Obtener el id de la nueva expensa insertada
+    SET new_expensa_id = LAST_INSERT_ID();
+
+    -- Insertar en Expensas_por_Propietario
+    INSERT INTO Expensas_por_Propietario (id_expensa, id_propietario)
+    VALUES (new_expensa_id, propietario_id);
+END //
+
+-- Stored Procedure para Crear Expensas para Todos los Propietarios de un Consorcio, invocando.
+CREATE PROCEDURE sp_crear_expensas_propietarios(
+    IN expensa_id INT,
+    IN consorcio_id INT,
+    IN total_expensas DECIMAL(10,2),
+    IN fecha DATE
+)
+BEGIN
+    DECLARE propietario_id INT;
+    DECLARE porcentaje_fiscal DECIMAL(5,2);
+    
+    -- Iterar sobre los propietarios del consorcio y calcular expensas
+    SET @propietario_id = 0;
+    WHILE EXISTS (SELECT id_propietario FROM Propietarios WHERE id_consorcio = consorcio_id AND id_propietario > @propietario_id LIMIT 1) DO
+        SELECT id_propietario, porcentaje_fiscal INTO @propietario_id, porcentaje_fiscal
+        FROM Propietarios 
+        WHERE id_consorcio = consorcio_id AND id_propietario > @propietario_id
+        LIMIT 1;
+        
+        -- Calcular expensa para el propietario y llamar al SP intermedio
+        CALL sp_insertar_expensa_propietario(
+            @propietario_id,
+            fecha,
+            funcion_calcular_expensas_propietario(total_expensas, porcentaje_fiscal)
+        );
+    END WHILE;
+END //
+
+-- Stored Procedure para actualizar las expensas de todos los propietarios de un consorcio
+CREATE PROCEDURE sp_actualizar_expensas_propietarios(
+    IN expensa_id INT,
+    IN consorcio_id INT,
+    IN nuevo_total_expensas DECIMAL(10,2),
+    IN nueva_fecha DATE
+)
+BEGIN
+    DECLARE propietario_id INT;
+    DECLARE porcentaje_fiscal DECIMAL(5,2);
+
+    -- Iterar sobre los propietarios del consorcio y actualizar expensas
+    SET @propietario_id = 0;
+    WHILE EXISTS (SELECT id_propietario FROM Propietarios WHERE id_consorcio = consorcio_id AND id_propietario > @propietario_id LIMIT 1) DO
+        SELECT id_propietario, porcentaje_fiscal INTO @propietario_id, porcentaje_fiscal
+        FROM Propietarios 
+        WHERE id_consorcio = consorcio_id AND id_propietario > @propietario_id
+        LIMIT 1;
+
+        -- Calcular nueva expensa para el propietario y actualizarla en h_Expensas y Expensas_por_Propietario
+        UPDATE h_Expensas he
+        JOIN Expensas_por_Propietario epp ON he.id_expensa = epp.id_expensa
+        SET he.monto_expensas = funcion_calcular_expensas_propietario(nuevo_total_expensas, porcentaje_fiscal), 
+            he.fecha_vencimiento = nueva_fecha
+        WHERE epp.id_propietario = @propietario_id 
+          AND he.id_expensa = expensa_id;
+    END WHILE;
+END //
+
+-- SP para actualizar el salario de un encargado específico.
+CREATE PROCEDURE sp_actualizar_salario_encargado(
+    IN id_encargado INT,
+    IN nuevo_salario DECIMAL(10,2)
+)
+BEGIN
+    UPDATE Encargados
+    SET salario = nuevo_salario
+    WHERE id_encargado = id_encargado;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+-- Trigger que ante el agregado de una entrada en la tabla de Expensas_por_Consorcio, agrega las expensas correspondientes para cada propietario del Consorcio.
+CREATE TRIGGER trigger_after_insert_expensas_por_consorcio
+AFTER INSERT ON Expensas_por_Consorcio
+FOR EACH ROW
+BEGIN
+    DECLARE total_expensas DECIMAL(10,2);
+    DECLARE fecha DATE;
+
+    -- Obtener el monto de la expensa desde h_Expensas
+    SELECT monto_expensas INTO total_expensas
+    FROM h_Expensas
+    WHERE id_expensa = NEW.id_expensa;
+    
+	-- Obtener la fecha de vencimiento de la expensa desde h_Expensas
+    SELECT fecha_vencimiento INTO fecha
+    FROM h_Expensas
+    WHERE id_expensa = NEW.id_expensa;
+
+    -- Llamar al procedimiento para crear expensas de propietarios
+    CALL sp_crear_expensas_propietarios(NEW.id_expensa, NEW.id_consorcio, total_expensas, fecha);
+END //
+
+-- Trigger que ante la modificación de una entrada en la tabla h_Expensas, actualiza las expensas correspondientes de los propietarios del Consorcio.
+CREATE TRIGGER trigger_after_update_expensas
+AFTER UPDATE ON h_Expensas
+FOR EACH ROW
+BEGIN
+    DECLARE consorcio_id INT;
+
+    -- Verificar si la expensa modificada está asociada a algún consorcio
+    SELECT id_consorcio INTO consorcio_id
+    FROM Expensas_por_Consorcio
+    WHERE id_expensa = NEW.id_expensa;
+    
+    -- Si se encuentra el consorcio asociado, llamar al SP para actualizar las expensas de los propietarios
+    IF consorcio_id IS NOT NULL THEN
+        CALL sp_actualizar_expensas_propietarios(NEW.id_expensa, consorcio_id, NEW.monto_expensas, NEW.fecha_vencimiento);
+    END IF;
+END //
+
+-- >
+-- Trigger para actualizar las expensas totales de un consorcio al momento de agregarse una reparacion asociada al mismo
+--
+
+-- Inserción de datos
+-- Insertar Administradores (10)
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (1, 'Ankunding-Marquardt', '33-77179407-1', '1100656503', 'bbrewitt0@huffingtonpost.com');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (2, 'Oberbrunner-Jacobi', '23-36919033-1', '1134185143', 'kruzic1@dmoz.org');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (3, 'Schmidt-Jacobi', '20-18851079-0', '1168450779', 'cfausset2@surveymonkey.com');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (4, 'Fadel-Lowe', '27-46109228-2', '1100651188', 'ltester3@cnbc.com');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (5, 'Sipes-Jenkins', '20-66066120-3', '1193127790', 'jives4@oaic.gov.au');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (6, 'Renner, Boyle and Tillman', '33-35290917-1', '1172853216', 'dcoggon5@time.com');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (7, 'Stanton-Kunze', '23-83924505-3', '1174660157', 'oolpin6@tripadvisor.com');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (8, 'Zboncak Group', '30-75414810-0', '1156895922', 'gmackimm7@hc360.com');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (9, 'Hills-Casper', '20-34015163-3', '1161001442', 'khaggett8@wordpress.org');
+insert into Administradores (id_administrador, nombre, CUIT, telefono, email) values (10, 'Rath Group', '30-21187055-2', '1192933846', 'hvolet9@admin.ch');
+-- Insertar Encargados (10)
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (1, 'Garvin', 'Lambole', '20-05785675-6', '505954');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (2, 'Jefferey', 'Haxby', '99-94897644-8', '472932.6');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (3, 'Blane', 'Follis', '23-34982506-6', '368668');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (4, 'Barbara', 'Lynde', '99-40578871-3', '540302.2');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (5, 'Dani', 'Arnholdt', '30-86175972-0', '605277.96');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (6, 'Lorene', 'Crookes', '50-06780797-1', '1413595');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (7, 'Bil', 'McGonigal', '34-30686084-7', '1684194.6');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (8, 'Gretchen', 'Syce', '50-32403123-0', '2534242.1');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (9, 'Theodore', 'Mobley', '50-35057518-5', '669224.1');
+insert into Encargados (id_encargado, nombre, apellido, CUIL, salario) values (10, 'Aurea', 'Bartoshevich', '50-05062107-9', '1440707');
+-- Insertar Consorcios (10)
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (1, '33-75759115-3', '66 Walton Crossing', 572, 10, 1);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (2, '30-78335263-3', '857 Muir Trail', 483, 9, 2);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (3, '30-54927417-1', '35 Lake View Pass', 598, 2, 3);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (4, '30-32286770-1', '11330 Johnson Street', 539, 1, 4);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (5, '23-13590496-2', '2 Nobel Place', 390, 2, 5);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (6, '20-65346667-0', '28 Anniversary Terrace', 648, 3, 6);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (7, '20-26751285-1', '59 Mifflin Hill', 496, 8, 7);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (8, '30-50642535-2', '83 Haas Trail', 380, 3, 8);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (9, '20-08965651-3', '73 Lindbergh Drive', 626, 2, 9);
+insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (10, '23-78074622-1', '678 Thackeray Terrace', 641, 3, 10);
+-- Insertar Proveedores (10)
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (1, 'Wilkinson-Bins', '1190313781', 'jmeeking0@cnn.com', 'Painter');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (2, 'Kuhlman, Kulas and Bayer', '1103701294', 'medleston1@uiuc.edu', 'Carpenter');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (3, 'Breitenberg, McClure and Moore', '1198791801', 'aeberz2@pagesperso-orange.fr', 'Carpenter');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (4, 'Hammes, Beatty and Hodkiewicz', '1189837366', 'enorree3@blogger.com', 'Carpenter');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (5, 'Purdy and Sons', '1125650971', 'mavraham4@fotki.com', 'Plumber');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (6, 'Carroll-Hermiston', '1199579134', 'nmccumesky5@ibm.com', 'Plumber');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (7, 'Harris Inc', '1141568649', 'dsturte6@taobao.com', 'Carpenter');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (8, 'Wunsch Group', '1162550807', 'crymell7@booking.com', 'Electrician');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (9, 'Blanda LLC', '1197744988', 'hmarke8@baidu.com', 'Landscaper');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (10, 'Wisozk-Denesik', '1164383567', 'hgriffiths9@meetup.com', 'Landscaper');
+-- Para insertar expensas, usar SP "sp_insertar_expensa_consorcio"
