@@ -13,6 +13,39 @@ FROM
 JOIN 
     Consorcios c ON p.id_consorcio = c.id_consorcio;
     
--- Vista que muestra el histórico de expensas de un propietario con detalles del consorcio
+-- Vista que muestra el histórico de expensas de un propietario de un consorcio para cada período contabilizado.
+CREATE VIEW vista_historico_expensas_propietario AS
+SELECT 
+    p.id_propietario,
+    CONCAT(p.nombre, ' ', p.apellido) AS propietario,
+    c.id_consorcio,
+    c.direccion AS consorcio,
+    obtener_periodo(e.id_pagos_periodo) AS periodo,
+    e.monto,
+    e.fecha_vencimiento,
+    e.pagado
+FROM 
+    h_Expensas e
+JOIN 
+    Propietarios p ON e.id_propietario = p.id_propietario
+JOIN 
+    Consorcios c ON p.id_consorcio = c.id_consorcio
+ORDER BY 
+    p.id_propietario, c.id_consorcio, e.id_pagos_periodo;
 
--- Vista para obtener la última expensa de cada propietario utilizando
+-- Vista para obtener las expensas de todos los propietarios de un consorcio en un período dado
+CREATE VIEW vista_expensas_consorcio_periodo AS
+SELECT 
+    c.direccion AS consorcio,
+    CONCAT(p.nombre, ' ', p.apellido) AS propietario,
+    obtener_periodo(e.id_pagos_periodo) AS periodo,
+    e.monto,
+    e.pagado
+FROM 
+    h_Expensas e
+JOIN 
+    Propietarios p ON e.id_propietario = p.id_propietario
+JOIN 
+    Consorcios c ON p.id_consorcio = c.id_consorcio
+ORDER BY 
+    c.id_consorcio, e.id_pagos_periodo;
