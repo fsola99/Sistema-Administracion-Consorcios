@@ -32,7 +32,7 @@ insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_
 insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (8, '30-50642535-2', '83 Haas Trail', 380, 3, 8);
 insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (9, '20-08965651-3', '73 Lindbergh Drive', 626, 2, 9);
 insert into Consorcios (id_consorcio, CUIT, direccion, unidades_funcionales, id_administrador, id_encargado) values (10, '23-78074622-1', '678 Thackeray Terrace', 641, 3, 10);
--- Insertar Proveedores (10)
+-- Insertar Proveedores (12)
 insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (1, 'Wilkinson-Bins', '1190313781', 'jmeeking0@cnn.com', 'Painter');
 insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (2, 'Kuhlman, Kulas and Bayer', '1103701294', 'medleston1@uiuc.edu', 'Carpenter');
 insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (3, 'Breitenberg, McClure and Moore', '1198791801', 'aeberz2@pagesperso-orange.fr', 'Carpenter');
@@ -43,13 +43,8 @@ insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcio
 insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (8, 'Wunsch Group', '1162550807', 'crymell7@booking.com', 'Electrician');
 insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (9, 'Blanda LLC', '1197744988', 'hmarke8@baidu.com', 'Landscaper');
 insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (10, 'Wisozk-Denesik', '1164383567', 'hgriffiths9@meetup.com', 'Landscaper');
--- >
--- Insertar Proveedores
-INSERT INTO Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) 
-VALUES 
-(11, 'Proveedor A', '1156781234', 'proveedora@example.com', 'Limpieza'),
-(12, 'Proveedor B', '1156785678', 'proveedorb@example.com', 'Mantenimiento');
-
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (11, 'Proveedor A', '1156781234', 'proveedora@example.com', 'Limpieza');
+insert into Proveedores (id_proveedor, razon_social, telefono, email, descripcion_servicio) values (12, 'Proveedor B', '1156785678', 'proveedorb@example.com', 'Mantenimiento');
 -- Insertar Propietarios
 INSERT INTO Propietarios (id_propietario, nombre, apellido, telefono, email, departamento, id_consorcio, unidad_funcional, porcentaje_fiscal) 
 VALUES 
@@ -57,11 +52,6 @@ VALUES
 (2, 'Maria', 'Gomez', '1156785678', 'maria.gomez@example.com', 'B2', 1, 2, 20.00),
 (3, 'Carlos', 'Sanchez', '1167891234', 'carlos.sanchez@example.com', 'C3', 1, 3, 30.00),
 (4, 'Ana', 'Lopez', '1178905678', 'ana.lopez@example.com', 'D4', 1, 4, 40.00);
-
--- Insertar h_Pagos_Periodo
--- INSERT INTO h_Pagos_Periodo (id_consorcio, mes, anio, monto_total) 
--- VALUES 
--- (1, 'Enero', 2024, 0);
 
 -- Insertar h_Gastos para probar triggers y stored procedures
 INSERT INTO h_Gastos (id_proveedor, id_consorcio, id_pagos_periodo, costo_total, fecha, concepto) 

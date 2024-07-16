@@ -142,4 +142,23 @@ BEGIN
     RETURN fecha_vencimiento;
 END //
 
+-- Función para obtener la última expensa de un propietario
+CREATE FUNCTION funcion_obtener_ultima_expensa(id_propietario INT)
+RETURNS INT
+READS SQL DATA
+BEGIN
+    DECLARE ultima_expensa_id INT;
+    
+    SELECT id_expensa
+    INTO ultima_expensa_id
+    FROM h_Expensas
+    WHERE id_propietario = id_propietario
+    ORDER BY id_pagos_periodo DESC
+    LIMIT 1;
+    
+    RETURN ultima_expensa_id;
+END //
+
 DELIMITER ;
+
+
