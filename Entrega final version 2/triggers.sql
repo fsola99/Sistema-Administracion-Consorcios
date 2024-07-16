@@ -1,7 +1,9 @@
 -- Creación de Triggers
 DELIMITER //
 
-CREATE TRIGGER before_insert_h_gastos
+-- Trigger que antes de insertar un gasto comprueba si existe una entrada de h_pagos_periodo asociada. Si no existe (si id_pagos_periodo = 0 y si para el periodo obtenido
+-- en base a la fecha no hay ya una entrada creada para ese consorcio) entonces la crea. Si ya hay una con ese periodo para ese consorcio, utiliza la que ya existe.
+CREATE TRIGGER trigger_previo_insertar_gasto
 BEFORE INSERT ON h_Gastos
 FOR EACH ROW
 BEGIN
@@ -40,7 +42,10 @@ BEGIN
     END IF;
 END //
 
-CREATE TRIGGER after_insert_h_gastos
+-- Trigger que despues de ingresar un gasto actualiza el monto total existente de la entrada de h_pagos_periodo asociada. 
+-- Si el monto_total de esa entrada de h_pagos_periodo era 0, llama al sp_crear_expensas_para_propietarios.
+-- Si el monto_total de esa entrada de h_pagos_periodo era diferente de 0, llama al sp_actualizar_expensas_propietarios.
+CREATE TRIGGER trigger_post_insertar_gasto
 AFTER INSERT ON h_Gastos
 FOR EACH ROW
 BEGIN
@@ -58,7 +63,7 @@ BEGIN
         WHERE id_pagos_periodo = NEW.id_pagos_periodo;
 
         -- Llamar al procedimiento para crear las expensas
-        CALL crear_expensas_para_propietarios(NEW.id_pagos_periodo);
+        CALL sp_crear_expensas_para_propietarios(NEW.id_pagos_periodo);
     ELSE
         -- Actualizar el monto_total del h_Pagos_Periodo sumando el nuevo gasto
         UPDATE h_Pagos_Periodo
@@ -66,11 +71,12 @@ BEGIN
         WHERE id_pagos_periodo = NEW.id_pagos_periodo;
         
         -- Llamar al procedimiento para actualizar las expensas
-        CALL actualizar_expensas_para_propietarios(NEW.id_pagos_periodo);
+        CALL sp_actualizar_expensas_propietarios(NEW.id_pagos_periodo);
     END IF;
 END //
 
-CREATE TRIGGER after_update_h_gastos
+-- Trigger para que ante el cambio de un gasto, se actualice el monto_total en h_pagos_periodo y llame al sp_actualizar_expensas_propietarios.
+CREATE TRIGGER trigger_post_actualizar_gasto
 AFTER UPDATE ON h_Gastos
 FOR EACH ROW
 BEGIN
@@ -91,7 +97,7 @@ BEGIN
     WHERE id_pagos_periodo = NEW.id_pagos_periodo;
 
     -- Llamar al procedimiento para actualizar las expensas
-    CALL actualizar_expensas_para_propietarios(NEW.id_pagos_periodo);
+    CALL sp_actualizar_expensas_propietarios(NEW.id_pagos_periodo);
 END //
 
 DELIMITER ;

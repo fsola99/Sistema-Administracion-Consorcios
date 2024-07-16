@@ -110,7 +110,7 @@ CREATE TABLE h_Expensas (
 -- Creación de Funciones
 DELIMITER //
 
--- Función para calcular las expensas de un propietario.
+-- Función para calcular las expensas de un propietario, multiplicando el monto_total por el porcentaje_fiscal brindado y dividirlo por 100.
 CREATE FUNCTION funcion_calcular_expensas_propietario(
     monto_total DECIMAL(10,2),
     porcentaje_fiscal DECIMAL(5,2)
@@ -120,23 +120,8 @@ BEGIN
     RETURN (monto_total * porcentaje_fiscal / 100);
 END //
 
--- Funcion para obtener el porcentaje fiscal del propietario cuyo ID es pasado como parametro.
-CREATE FUNCTION obtener_porcentaje_fiscal(id INT)
-RETURNS DECIMAL(5,2)
-READS SQL DATA
-BEGIN
-    DECLARE porcentaje DECIMAL(5,2);
-
-    SELECT porcentaje_fiscal
-    INTO porcentaje
-    FROM Propietarios
-    WHERE id_propietario = id;
-
-    RETURN porcentaje;
-END //
-
 -- Funcion para obtener el más reciente período (en formato: mes-anio) de pago por período cargado respecto a un ID consorcio pasado como parametro.
-CREATE FUNCTION obtener_periodo_reciente(id_consorcio INT)
+CREATE FUNCTION funcion_obtener_periodo_reciente(id_consorcio INT)
 RETURNS VARCHAR(20)
 READS SQL DATA
 BEGIN
@@ -174,8 +159,8 @@ BEGIN
     RETURN total;
 END //
 
--- Función para obtener el período de un pago por período en formato mes-anio
-CREATE FUNCTION obtener_periodo(id_pagos_periodo INT) 
+-- Función para obtener el período de un pago por período en varchar(20) con formato Mes-XXXX (con XXXX siendo el anio)
+CREATE FUNCTION funcion_obtener_periodo(id_pagos_periodo INT) 
 RETURNS VARCHAR(20)
 READS SQL DATA
 BEGIN
@@ -189,7 +174,7 @@ BEGIN
     RETURN periodo;
 END //
 
--- Funcion que en base a una fecha devuelve un período. El punto de corte es el 25 de cada mes.
+-- Funcion que en base a una fecha devuelve un período. El punto de corte es el 25 de cada mes, a partir del 26 es el próximo mes.
 CREATE FUNCTION funcion_obtener_periodo_por_fecha(fecha DATE)
 RETURNS VARCHAR(20)
 DETERMINISTIC
@@ -241,7 +226,7 @@ BEGIN
 END //
 
 -- Función para obtener la fecha de vencimiento en base a un período (mes y anio por separados).
-CREATE FUNCTION obtener_fecha_vencimiento(mes ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'), anio YEAR) 
+CREATE FUNCTION funcion_obtener_fecha_vencimiento(mes ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'), anio YEAR) 
 RETURNS DATE
 DETERMINISTIC
 BEGIN
@@ -290,7 +275,7 @@ SELECT
     CONCAT(p.nombre, ' ', p.apellido) AS propietario,
     c.id_consorcio,
     c.direccion AS consorcio,
-    obtener_periodo(e.id_pagos_periodo) AS periodo,
+    funcion_obtener_periodo(e.id_pagos_periodo) AS periodo,
     e.monto,
     e.fecha_vencimiento,
     e.pagado
@@ -308,7 +293,7 @@ CREATE VIEW vista_expensas_consorcio_periodo AS
 SELECT 
     c.direccion AS consorcio,
     CONCAT(p.nombre, ' ', p.apellido) AS propietario,
-    obtener_periodo(e.id_pagos_periodo) AS periodo,
+    funcion_obtener_periodo(e.id_pagos_periodo) AS periodo,
     e.monto,
     e.pagado
 FROM 
@@ -324,7 +309,8 @@ ORDER BY
 
 DELIMITER //
 
-CREATE PROCEDURE crear_expensas_para_propietarios(IN id_pago_periodo INT)
+-- Stored Procedure que crea expensas con sus valores correspondientes, para los propietarios del consorcio en base a un id_pago_periodo.
+CREATE PROCEDURE sp_crear_expensas_para_propietarios(IN id_pago_periodo INT)
 BEGIN
     DECLARE id_consorcio_val INT;
     DECLARE nuevo_monto_total DECIMAL(10,2);
@@ -343,7 +329,7 @@ BEGIN
     SELECT 
         p.id_propietario,
         id_pago_periodo,
-        obtener_fecha_vencimiento(periodo_mes, periodo_anio),
+        funcion_obtener_fecha_vencimiento(periodo_mes, periodo_anio),
         FALSE,
         funcion_calcular_expensas_propietario(nuevo_monto_total, p.porcentaje_fiscal)
     FROM 
@@ -352,7 +338,8 @@ BEGIN
         p.id_consorcio = id_consorcio_val;
 END //
 
-CREATE PROCEDURE actualizar_expensas_para_propietarios(IN id_pago_periodo INT)
+-- Stored Procedure que actualiza las expensas para todos los propietarios del consorcio en base a un id_pago_periodo.
+CREATE PROCEDURE sp_actualizar_expensas_propietarios(IN id_pago_periodo INT)
 BEGIN
     DECLARE id_consorcio_val INT;
     DECLARE nuevo_monto_total DECIMAL(10,2);
@@ -376,7 +363,9 @@ DELIMITER ;
 -- Creación de Triggers
 DELIMITER //
 
-CREATE TRIGGER before_insert_h_gastos
+-- Trigger que antes de insertar un gasto comprueba si existe una entrada de h_pagos_periodo asociada. Si no existe (si id_pagos_periodo = 0 y si para el periodo obtenido
+-- en base a la fecha no hay ya una entrada creada para ese consorcio) entonces la crea. Si ya hay una con ese periodo para ese consorcio, utiliza la que ya existe.
+CREATE TRIGGER trigger_previo_insertar_gasto
 BEFORE INSERT ON h_Gastos
 FOR EACH ROW
 BEGIN
@@ -415,7 +404,10 @@ BEGIN
     END IF;
 END //
 
-CREATE TRIGGER after_insert_h_gastos
+-- Trigger que despues de ingresar un gasto actualiza el monto total existente de la entrada de h_pagos_periodo asociada. 
+-- Si el monto_total de esa entrada de h_pagos_periodo era 0, llama al sp_crear_expensas_para_propietarios.
+-- Si el monto_total de esa entrada de h_pagos_periodo era diferente de 0, llama al sp_actualizar_expensas_propietarios.
+CREATE TRIGGER trigger_post_insertar_gasto
 AFTER INSERT ON h_Gastos
 FOR EACH ROW
 BEGIN
@@ -433,7 +425,7 @@ BEGIN
         WHERE id_pagos_periodo = NEW.id_pagos_periodo;
 
         -- Llamar al procedimiento para crear las expensas
-        CALL crear_expensas_para_propietarios(NEW.id_pagos_periodo);
+        CALL sp_crear_expensas_para_propietarios(NEW.id_pagos_periodo);
     ELSE
         -- Actualizar el monto_total del h_Pagos_Periodo sumando el nuevo gasto
         UPDATE h_Pagos_Periodo
@@ -441,11 +433,12 @@ BEGIN
         WHERE id_pagos_periodo = NEW.id_pagos_periodo;
         
         -- Llamar al procedimiento para actualizar las expensas
-        CALL actualizar_expensas_para_propietarios(NEW.id_pagos_periodo);
+        CALL sp_actualizar_expensas_propietarios(NEW.id_pagos_periodo);
     END IF;
 END //
 
-CREATE TRIGGER after_update_h_gastos
+-- Trigger para que ante el cambio de un gasto, se actualice el monto_total en h_pagos_periodo y llame al sp_actualizar_expensas_propietarios.
+CREATE TRIGGER trigger_post_actualizar_gasto
 AFTER UPDATE ON h_Gastos
 FOR EACH ROW
 BEGIN
@@ -466,7 +459,7 @@ BEGIN
     WHERE id_pagos_periodo = NEW.id_pagos_periodo;
 
     -- Llamar al procedimiento para actualizar las expensas
-    CALL actualizar_expensas_para_propietarios(NEW.id_pagos_periodo);
+    CALL sp_actualizar_expensas_propietarios(NEW.id_pagos_periodo);
 END //
 
 DELIMITER ;

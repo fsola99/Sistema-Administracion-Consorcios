@@ -20,7 +20,7 @@ SELECT
     CONCAT(p.nombre, ' ', p.apellido) AS propietario,
     c.id_consorcio,
     c.direccion AS consorcio,
-    obtener_periodo(e.id_pagos_periodo) AS periodo,
+    funcion_obtener_periodo(e.id_pagos_periodo) AS periodo,
     e.monto,
     e.fecha_vencimiento,
     e.pagado
@@ -38,7 +38,7 @@ CREATE VIEW vista_expensas_consorcio_periodo AS
 SELECT 
     c.direccion AS consorcio,
     CONCAT(p.nombre, ' ', p.apellido) AS propietario,
-    obtener_periodo(e.id_pagos_periodo) AS periodo,
+    funcion_obtener_periodo(e.id_pagos_periodo) AS periodo,
     e.monto,
     e.pagado
 FROM 

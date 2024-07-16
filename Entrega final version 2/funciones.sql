@@ -1,7 +1,7 @@
 -- Creación de Funciones
 DELIMITER //
 
--- Función para calcular las expensas de un propietario.
+-- Función para calcular las expensas de un propietario, multiplicando el monto_total por el porcentaje_fiscal brindado y dividirlo por 100.
 CREATE FUNCTION funcion_calcular_expensas_propietario(
     monto_total DECIMAL(10,2),
     porcentaje_fiscal DECIMAL(5,2)
@@ -11,23 +11,8 @@ BEGIN
     RETURN (monto_total * porcentaje_fiscal / 100);
 END //
 
--- Funcion para obtener el porcentaje fiscal del propietario cuyo ID es pasado como parametro.
-CREATE FUNCTION obtener_porcentaje_fiscal(id INT)
-RETURNS DECIMAL(5,2)
-READS SQL DATA
-BEGIN
-    DECLARE porcentaje DECIMAL(5,2);
-
-    SELECT porcentaje_fiscal
-    INTO porcentaje
-    FROM Propietarios
-    WHERE id_propietario = id;
-
-    RETURN porcentaje;
-END //
-
 -- Funcion para obtener el más reciente período (en formato: mes-anio) de pago por período cargado respecto a un ID consorcio pasado como parametro.
-CREATE FUNCTION obtener_periodo_reciente(id_consorcio INT)
+CREATE FUNCTION funcion_obtener_periodo_reciente(id_consorcio INT)
 RETURNS VARCHAR(20)
 READS SQL DATA
 BEGIN
@@ -65,8 +50,8 @@ BEGIN
     RETURN total;
 END //
 
--- Función para obtener el período de un pago por período en formato mes-anio
-CREATE FUNCTION obtener_periodo(id_pagos_periodo INT) 
+-- Función para obtener el período de un pago por período en varchar(20) con formato Mes-XXXX (con XXXX siendo el anio)
+CREATE FUNCTION funcion_obtener_periodo(id_pagos_periodo INT) 
 RETURNS VARCHAR(20)
 READS SQL DATA
 BEGIN
@@ -80,7 +65,7 @@ BEGIN
     RETURN periodo;
 END //
 
--- Funcion que en base a una fecha devuelve un período. El punto de corte es el 25 de cada mes.
+-- Funcion que en base a una fecha devuelve un período. El punto de corte es el 25 de cada mes, a partir del 26 es el próximo mes.
 CREATE FUNCTION funcion_obtener_periodo_por_fecha(fecha DATE)
 RETURNS VARCHAR(20)
 DETERMINISTIC
@@ -132,7 +117,7 @@ BEGIN
 END //
 
 -- Función para obtener la fecha de vencimiento en base a un período (mes y anio por separados).
-CREATE FUNCTION obtener_fecha_vencimiento(mes ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'), anio YEAR) 
+CREATE FUNCTION funcion_obtener_fecha_vencimiento(mes ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'), anio YEAR) 
 RETURNS DATE
 DETERMINISTIC
 BEGIN

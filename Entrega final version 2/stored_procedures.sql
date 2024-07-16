@@ -2,7 +2,8 @@
 
 DELIMITER //
 
-CREATE PROCEDURE crear_expensas_para_propietarios(IN id_pago_periodo INT)
+-- Stored Procedure que crea expensas con sus valores correspondientes, para los propietarios del consorcio en base a un id_pago_periodo.
+CREATE PROCEDURE sp_crear_expensas_para_propietarios(IN id_pago_periodo INT)
 BEGIN
     DECLARE id_consorcio_val INT;
     DECLARE nuevo_monto_total DECIMAL(10,2);
@@ -21,7 +22,7 @@ BEGIN
     SELECT 
         p.id_propietario,
         id_pago_periodo,
-        obtener_fecha_vencimiento(periodo_mes, periodo_anio),
+        funcion_obtener_fecha_vencimiento(periodo_mes, periodo_anio),
         FALSE,
         funcion_calcular_expensas_propietario(nuevo_monto_total, p.porcentaje_fiscal)
     FROM 
@@ -30,7 +31,8 @@ BEGIN
         p.id_consorcio = id_consorcio_val;
 END //
 
-CREATE PROCEDURE actualizar_expensas_para_propietarios(IN id_pago_periodo INT)
+-- Stored Procedure que actualiza las expensas para todos los propietarios del consorcio en base a un id_pago_periodo.
+CREATE PROCEDURE sp_actualizar_expensas_propietarios(IN id_pago_periodo INT)
 BEGIN
     DECLARE id_consorcio_val INT;
     DECLARE nuevo_monto_total DECIMAL(10,2);
