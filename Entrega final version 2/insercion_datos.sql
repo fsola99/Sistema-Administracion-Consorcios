@@ -59,19 +59,17 @@ VALUES
 (4, 'Ana', 'Lopez', '1178905678', 'ana.lopez@example.com', 'D4', 1, 4, 40.00);
 
 -- Insertar h_Pagos_Periodo
-INSERT INTO h_Pagos_Periodo (id_consorcio, mes, anio, monto_total) 
-VALUES 
-(1, 'Enero', 2024, 0);
+-- INSERT INTO h_Pagos_Periodo (id_consorcio, mes, anio, monto_total) 
+-- VALUES 
+-- (1, 'Enero', 2024, 0);
 
 -- Insertar h_Gastos para probar triggers y stored procedures
-INSERT INTO h_Gastos (id_proveedor, id_consorcio, id_propietario, id_pagos_periodo, costo_total, fecha, comun, concepto) 
+INSERT INTO h_Gastos (id_proveedor, id_consorcio, id_pagos_periodo, costo_total, fecha, concepto) 
 VALUES 
-(1, 1, NULL, 0, 1000.00, '2024-01-10', TRUE, 'Limpieza mensual'),
-(2, 1, NULL, 0, 1500.00, '2024-01-15', TRUE, 'Mantenimiento de ascensores');
+(1, 1, 0, 1000.00, '2024-01-10', 'Limpieza mensual'),
+(2, 1, 0, 1500.00, '2024-01-15', 'Mantenimiento de ascensores');
 
 SELECT * FROM consorcios;
 SELECT * FROM h_Pagos_Periodo;
 SELECT * FROM h_Gastos;
 SELECT * FROM h_Expensas;
-
-

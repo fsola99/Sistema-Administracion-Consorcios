@@ -70,4 +70,28 @@ BEGIN
     END IF;
 END //
 
+CREATE TRIGGER after_update_h_gastos
+AFTER UPDATE ON h_Gastos
+FOR EACH ROW
+BEGIN
+    DECLARE diferencia DECIMAL(10,2);
+    DECLARE monto_total_actual DECIMAL(10,2);
+    
+    -- Calcular la diferencia entre el nuevo costo total y el costo total anterior
+    SET diferencia = NEW.costo_total - OLD.costo_total;
+
+    -- Actualizar el monto_total en h_Pagos_Periodo sumando la diferencia
+    UPDATE h_Pagos_Periodo
+    SET monto_total = monto_total + diferencia
+    WHERE id_pagos_periodo = NEW.id_pagos_periodo;
+    
+    -- Obtener el nuevo monto_total
+    SELECT monto_total INTO monto_total_actual
+    FROM h_Pagos_Periodo
+    WHERE id_pagos_periodo = NEW.id_pagos_periodo;
+
+    -- Llamar al procedimiento para actualizar las expensas
+    CALL actualizar_expensas_para_propietarios(NEW.id_pagos_periodo);
+END //
+
 DELIMITER ;

@@ -86,15 +86,12 @@ CREATE TABLE h_Gastos (
     id_gasto INT AUTO_INCREMENT PRIMARY KEY,
     id_proveedor INT NOT NULL,
     id_consorcio INT NOT NULL,
-    id_propietario INT,
     id_pagos_periodo INT NOT NULL DEFAULT 0,
     costo_total DECIMAL(10,2) NOT NULL,
     fecha DATE NOT NULL,
-    comun BOOL NOT NULL,
     concepto VARCHAR(200) NOT NULL,
     FOREIGN KEY (id_proveedor) REFERENCES Proveedores(id_proveedor),
     FOREIGN KEY (id_consorcio) REFERENCES Consorcios(id_consorcio),
-    FOREIGN KEY (id_propietario) REFERENCES Propietarios(id_propietario),
     FOREIGN KEY (id_pagos_periodo) REFERENCES h_Pagos_Periodo(id_pagos_periodo)
 );
 
@@ -446,6 +443,30 @@ BEGIN
         -- Llamar al procedimiento para actualizar las expensas
         CALL actualizar_expensas_para_propietarios(NEW.id_pagos_periodo);
     END IF;
+END //
+
+CREATE TRIGGER after_update_h_gastos
+AFTER UPDATE ON h_Gastos
+FOR EACH ROW
+BEGIN
+    DECLARE diferencia DECIMAL(10,2);
+    DECLARE monto_total_actual DECIMAL(10,2);
+    
+    -- Calcular la diferencia entre el nuevo costo total y el costo total anterior
+    SET diferencia = NEW.costo_total - OLD.costo_total;
+
+    -- Actualizar el monto_total en h_Pagos_Periodo sumando la diferencia
+    UPDATE h_Pagos_Periodo
+    SET monto_total = monto_total + diferencia
+    WHERE id_pagos_periodo = NEW.id_pagos_periodo;
+    
+    -- Obtener el nuevo monto_total
+    SELECT monto_total INTO monto_total_actual
+    FROM h_Pagos_Periodo
+    WHERE id_pagos_periodo = NEW.id_pagos_periodo;
+
+    -- Llamar al procedimiento para actualizar las expensas
+    CALL actualizar_expensas_para_propietarios(NEW.id_pagos_periodo);
 END //
 
 DELIMITER ;
