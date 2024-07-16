@@ -140,17 +140,17 @@ BEGIN
     
     -- Si el mes es Diciembre, la fecha de vencimiento será el 10 de Enero del siguiente año
     CASE mes
-        WHEN 'Enero' THEN SET fecha_vencimiento = CONCAT(anio, '-01-10');
-        WHEN 'Febrero' THEN SET fecha_vencimiento = CONCAT(anio, '-02-10');
-        WHEN 'Marzo' THEN SET fecha_vencimiento = CONCAT(anio, '-03-10');
-        WHEN 'Abril' THEN SET fecha_vencimiento = CONCAT(anio, '-04-10');
-        WHEN 'Mayo' THEN SET fecha_vencimiento = CONCAT(anio, '-05-10');
-        WHEN 'Junio' THEN SET fecha_vencimiento = CONCAT(anio, '-06-10');
-        WHEN 'Julio' THEN SET fecha_vencimiento = CONCAT(anio, '-07-10');
-        WHEN 'Agosto' THEN SET fecha_vencimiento = CONCAT(anio, '-08-10');
-        WHEN 'Septiembre' THEN SET fecha_vencimiento = CONCAT(anio, '-09-10');
-        WHEN 'Octubre' THEN SET fecha_vencimiento = CONCAT(anio, '-10-10');
-        WHEN 'Noviembre' THEN SET fecha_vencimiento = CONCAT(anio, '-11-10');
+        WHEN 'Enero' THEN SET fecha_vencimiento = CONCAT(anio, '-02-10');
+        WHEN 'Febrero' THEN SET fecha_vencimiento = CONCAT(anio, '-03-10');
+        WHEN 'Marzo' THEN SET fecha_vencimiento = CONCAT(anio, '-04-10');
+        WHEN 'Abril' THEN SET fecha_vencimiento = CONCAT(anio, '-05-10');
+        WHEN 'Mayo' THEN SET fecha_vencimiento = CONCAT(anio, '-06-10');
+        WHEN 'Junio' THEN SET fecha_vencimiento = CONCAT(anio, '-07-10');
+        WHEN 'Julio' THEN SET fecha_vencimiento = CONCAT(anio, '-08-10');
+        WHEN 'Agosto' THEN SET fecha_vencimiento = CONCAT(anio, '-09-10');
+        WHEN 'Septiembre' THEN SET fecha_vencimiento = CONCAT(anio, '-10-10');
+        WHEN 'Octubre' THEN SET fecha_vencimiento = CONCAT(anio, '-11-10');
+        WHEN 'Noviembre' THEN SET fecha_vencimiento = CONCAT(anio, '-12-10');
         WHEN 'Diciembre' THEN SET fecha_vencimiento = CONCAT(anio + 1, '-01-10');
     END CASE;
 
