@@ -116,30 +116,44 @@ BEGIN
     RETURN periodo;
 END //
 
--- Función para obtener la fecha de vencimiento en base a un período (mes y anio por separados).
-CREATE FUNCTION funcion_obtener_fecha_vencimiento(mes ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'), anio YEAR) 
+-- Función para obtener la fecha de vencimiento en base a un ID de h_pagos_periodo
+CREATE FUNCTION funcion_obtener_fecha_vencimiento_por_id(id_pagos_periodo_nuevo INT)
 RETURNS DATE
 DETERMINISTIC
 BEGIN
-    DECLARE fecha_vencimiento DATE;
-    
-    -- Si el mes es Diciembre, la fecha de vencimiento será el 10 de Enero del siguiente año
-    CASE mes
-        WHEN 'Enero' THEN SET fecha_vencimiento = CONCAT(anio, '-02-10');
-        WHEN 'Febrero' THEN SET fecha_vencimiento = CONCAT(anio, '-03-10');
-        WHEN 'Marzo' THEN SET fecha_vencimiento = CONCAT(anio, '-04-10');
-        WHEN 'Abril' THEN SET fecha_vencimiento = CONCAT(anio, '-05-10');
-        WHEN 'Mayo' THEN SET fecha_vencimiento = CONCAT(anio, '-06-10');
-        WHEN 'Junio' THEN SET fecha_vencimiento = CONCAT(anio, '-07-10');
-        WHEN 'Julio' THEN SET fecha_vencimiento = CONCAT(anio, '-08-10');
-        WHEN 'Agosto' THEN SET fecha_vencimiento = CONCAT(anio, '-09-10');
-        WHEN 'Septiembre' THEN SET fecha_vencimiento = CONCAT(anio, '-10-10');
-        WHEN 'Octubre' THEN SET fecha_vencimiento = CONCAT(anio, '-11-10');
-        WHEN 'Noviembre' THEN SET fecha_vencimiento = CONCAT(anio, '-12-10');
-        WHEN 'Diciembre' THEN SET fecha_vencimiento = CONCAT(anio + 1, '-01-10');
+    DECLARE fecha_vencimiento_nuevo DATE;
+    DECLARE mes_nuevo ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre');
+    DECLARE anio_nuevo YEAR;
+
+    -- Obtener el mes y el año del período de pagos
+    SELECT
+        mes,
+        anio
+    INTO
+        mes_nuevo,
+        anio_nuevo
+    FROM
+        h_Pagos_Periodo
+    WHERE
+        id_pagos_periodo = id_pagos_periodo_nuevo;
+
+    -- Asignar la fecha de vencimiento basada en el mes y año
+    CASE mes_nuevo
+        WHEN 'Enero' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-02-10');
+        WHEN 'Febrero' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-03-10');
+        WHEN 'Marzo' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-04-10');
+        WHEN 'Abril' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-05-10');
+        WHEN 'Mayo' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-06-10');
+        WHEN 'Junio' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-07-10');
+        WHEN 'Julio' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-08-10');
+        WHEN 'Agosto' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-09-10');
+        WHEN 'Septiembre' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-10-10');
+        WHEN 'Octubre' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-11-10');
+        WHEN 'Noviembre' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo, '-12-10');
+        WHEN 'Diciembre' THEN SET fecha_vencimiento_nuevo = CONCAT(anio_nuevo + 1, '-01-10');
     END CASE;
 
-    RETURN fecha_vencimiento;
+    RETURN fecha_vencimiento_nuevo;
 END //
 
 -- Función para obtener la última expensa de un propietario

@@ -465,157 +465,118 @@ LIMIT 100;
 
 DELIMITER //
 
--- Stored Procedure que crea expensas con sus valores correspondientes, para los propietarios del consorcio en base a un id_pago_periodo.
-CREATE PROCEDURE sp_crear_expensas_para_propietarios(IN id_pago_periodo INT)
+CREATE PROCEDURE procedimiento_asignar_gasto_a_pagos_periodo(IN id_gasto_nuevo INT)
 BEGIN
-    DECLARE id_consorcio_val INT;
-    DECLARE nuevo_monto_total DECIMAL(10,2);
-    DECLARE expensa_monto DECIMAL(10,2);
-    DECLARE periodo_mes VARCHAR(20);
-    DECLARE periodo_anio INT;
+    DECLARE id_consorcio_nuevo INT;
+    DECLARE fecha_nuevo DATE;
+    DECLARE periodo_nuevo VARCHAR(20);
+    DECLARE id_pagos_periodo_nuevo INT;
 
-    -- Obtener el id_consorcio, monto_total y periodo del h_Pagos_Periodo
-    SELECT id_consorcio, monto_total, mes, anio
-    INTO id_consorcio_val, nuevo_monto_total, periodo_mes, periodo_anio
+    -- Obtener la fecha y el id_consorcio del gasto
+    SELECT id_consorcio, fecha
+    INTO id_consorcio_nuevo, fecha_nuevo
+    FROM h_Gastos
+    WHERE id_gasto = id_gasto_nuevo;
+
+    -- Obtener el período en base a la fecha del gasto
+    SET periodo_nuevo = funcion_obtener_periodo_por_fecha(fecha_nuevo);
+
+    -- Obtener el mes y el año del período
+    SET @mes = SUBSTRING_INDEX(periodo_nuevo, '-', 1);
+    SET @anio = SUBSTRING_INDEX(periodo_nuevo, '-', -1);
+
+    -- Verificar si existe un id_pagos_periodo para el consorcio y período
+    SELECT id_pagos_periodo
+    INTO id_pagos_periodo_nuevo
     FROM h_Pagos_Periodo
-    WHERE id_pagos_periodo = id_pago_periodo;
+    WHERE id_consorcio = id_consorcio_nuevo
+    AND mes = @mes
+    AND anio = @anio;
 
-    -- Calcular las expensas para todos los propietarios del consorcio
-    INSERT INTO h_Expensas (id_propietario, id_pagos_periodo, fecha_vencimiento, pagado, monto)
-    SELECT 
-        p.id_propietario,
-        id_pago_periodo,
-        funcion_obtener_fecha_vencimiento(periodo_mes, periodo_anio),
-        FALSE,
-        funcion_calcular_expensas_propietario(nuevo_monto_total, p.porcentaje_fiscal)
-    FROM 
-        Propietarios p
-    WHERE 
-        p.id_consorcio = id_consorcio_val;
+    -- Si no existe, insertar un nuevo registro en h_Pagos_Periodo
+    IF id_pagos_periodo_nuevo IS NULL THEN
+        INSERT INTO h_Pagos_Periodo (id_consorcio, mes, anio, monto_total)
+        VALUES (id_consorcio_nuevo, @mes, @anio, 0);
+        SET id_pagos_periodo_nuevo = LAST_INSERT_ID();
+    END IF;
+
+    -- Asignar el id_pagos_periodo al gasto
+    UPDATE h_Gastos
+    SET id_pagos_periodo = id_pagos_periodo_nuevo
+    WHERE id_gasto = id_gasto_nuevo;
 END //
-
--- Stored Procedure que actualiza las expensas para todos los propietarios del consorcio en base a un id_pago_periodo.
-CREATE PROCEDURE sp_actualizar_expensas_propietarios(IN id_pago_periodo INT)
+CREATE PROCEDURE procedimiento_actualizar_expensas_propietarios(
+    IN id_consorcio_nuevo INT,
+    IN id_pagos_periodo_nuevo INT
+)
 BEGIN
-    DECLARE id_consorcio_val INT;
-    DECLARE nuevo_monto_total DECIMAL(10,2);
-    DECLARE expensa_monto DECIMAL(10,2);
+    DECLARE monto_total_nuevo DECIMAL(10,2);
 
-    -- Obtener el id_consorcio y monto_total del h_Pagos_Periodo
-    SELECT id_consorcio, monto_total
-    INTO id_consorcio_val, nuevo_monto_total
+    -- Obtener el monto total del periodo de pagos
+    SELECT monto_total INTO monto_total_nuevo
     FROM h_Pagos_Periodo
-    WHERE id_pagos_periodo = id_pago_periodo;
+    WHERE id_pagos_periodo = id_pagos_periodo_nuevo;
 
-    -- Actualizar las expensas para todos los propietarios del consorcio
+    -- Actualizar las expensas existentes para cada propietario
     UPDATE h_Expensas e
-    JOIN Propietarios p ON e.id_propietario = p.id_propietario
-    SET e.monto = funcion_calcular_expensas_propietario(nuevo_monto_total, p.porcentaje_fiscal)
-    WHERE e.id_pagos_periodo = id_pago_periodo;
+    JOIN propietarios p ON e.id_propietario = p.id_propietario
+    SET e.monto_expensa = funcion_calcular_expensas_propietario(monto_total_nuevo, p.procentaje_fical)
+    WHERE e.id_pagos_periodo = id_pagos_periodo_nuevo AND p.id_consorcio = id_consorcio_nuevo;
+
+    -- Insertar expensas para los propietarios que no tienen una entrada para el periodo
+    INSERT INTO h_Expensas (id_propietario, id_pagos_periodo, fecha_vencimiento, pagado, monto)
+    SELECT p.id_propietario, id_pagos_periodo_nuevo, funcion_obtener_fecha_vencimiento_segun_id(id_pagos_periodo_nuevo), FALSE, funcion_calcular_expensas_propietario(monto_total_nuevo, p.procentaje_fical)
+    FROM propietarios p
+    WHERE p.id_consorcio = id_consorcio_nuevo
+      AND NOT EXISTS (
+          SELECT 1
+          FROM h_Expensas e
+          WHERE e.id_propietario = p.id_propietario AND e.id_pagos_periodo = id_pagos_periodo_nuevo
+      );
 END //
 
 DELIMITER ;
 
--- Creación de Triggers
+
+
 DELIMITER //
 
--- Trigger que antes de insertar un gasto comprueba si existe una entrada de h_pagos_periodo asociada. Si no existe (si id_pagos_periodo = 0 y si para el periodo obtenido
--- en base a la fecha no hay ya una entrada creada para ese consorcio) entonces la crea. Si ya hay una con ese periodo para ese consorcio, utiliza la que ya existe.
-CREATE TRIGGER trigger_previo_insertar_gasto
-BEFORE INSERT ON h_Gastos
-FOR EACH ROW
-BEGIN
-    DECLARE periodo VARCHAR(20);
-    DECLARE mes VARCHAR(20);
-    DECLARE anio INT;
-    DECLARE id_pago_periodo_existente INT;
-
-    -- Verificar si id_pagos_periodo es 0
-    IF NEW.id_pagos_periodo = 0 THEN
-        -- Obtener el período utilizando la función
-        SET periodo = funcion_obtener_periodo_por_fecha(NEW.fecha);
-
-        -- Extraer mes y año del período
-        SET mes = SUBSTRING_INDEX(periodo, '-', 1);
-        SET anio = CAST(SUBSTRING_INDEX(periodo, '-', -1) AS UNSIGNED);
-
-        -- Verificar si ya existe un registro en h_Pagos_Periodo para el consorcio y el período
-        SELECT id_pagos_periodo INTO id_pago_periodo_existente
-        FROM h_Pagos_Periodo
-        WHERE id_consorcio = NEW.id_consorcio
-          AND mes = mes
-          AND anio = anio;
-
-        -- Si no existe, crear uno nuevo
-        IF id_pago_periodo_existente IS NULL THEN
-            INSERT INTO h_Pagos_Periodo (id_consorcio, mes, anio, monto_total)
-            VALUES (NEW.id_consorcio, mes, anio, 0);
-
-            -- Obtener el ID del nuevo registro de h_Pagos_Periodo
-            SET NEW.id_pagos_periodo = LAST_INSERT_ID();
-        ELSE
-            -- Usar el ID existente
-            SET NEW.id_pagos_periodo = id_pago_periodo_existente;
-        END IF;
-    END IF;
-END //
-
--- Trigger que despues de ingresar un gasto actualiza el monto total existente de la entrada de h_pagos_periodo asociada. 
--- Si el monto_total de esa entrada de h_pagos_periodo era 0, llama al sp_crear_expensas_para_propietarios.
--- Si el monto_total de esa entrada de h_pagos_periodo era diferente de 0, llama al sp_actualizar_expensas_propietarios.
-CREATE TRIGGER trigger_post_insertar_gasto
+CREATE TRIGGER after_insert_h_gastos
 AFTER INSERT ON h_Gastos
 FOR EACH ROW
 BEGIN
-    DECLARE monto_total_existente DECIMAL(10,2);
+    DECLARE id_pagos_periodo_actual INT;
     
-    -- Verificar el monto_total del h_Pagos_Periodo
-    SELECT monto_total INTO monto_total_existente
-    FROM h_Pagos_Periodo
-    WHERE id_pagos_periodo = NEW.id_pagos_periodo;
+    -- Llamar al stored procedure para asignar el gasto a un pago por período
+    CALL procedimiento_asignar_gasto_a_pagos_periodo(NEW.id_gasto);
+    
+	-- Obtener el id_pagos_periodo actualizado    
+    SELECT id_pagos_periodo INTO id_pagos_periodo_actual FROM h_Gastos WHERE id_gasto = NEW.id_gasto;
 
-    IF monto_total_existente = 0 THEN
-        -- Actualizar el monto_total del h_Pagos_Periodo
-        UPDATE h_Pagos_Periodo
-        SET monto_total = NEW.costo_total
-        WHERE id_pagos_periodo = NEW.id_pagos_periodo;
+    -- Actualizar el monto total en la tabla h_Pagos_Periodo
+    UPDATE h_Pagos_Periodo
+    SET monto_total = monto_total + NEW.costo_total
+    WHERE id_pagos_periodo = id_pagos_periodo_actual;
 
-        -- Llamar al procedimiento para crear las expensas
-        CALL sp_crear_expensas_para_propietarios(NEW.id_pagos_periodo);
-    ELSE
-        -- Actualizar el monto_total del h_Pagos_Periodo sumando el nuevo gasto
-        UPDATE h_Pagos_Periodo
-        SET monto_total = monto_total + NEW.costo_total
-        WHERE id_pagos_periodo = NEW.id_pagos_periodo;
-        
-        -- Llamar al procedimiento para actualizar las expensas
-        CALL sp_actualizar_expensas_propietarios(NEW.id_pagos_periodo);
-    END IF;
+    -- Llamar al procedimiento para actualizar las expensas de los propietarios
+    CALL procedimiento_actualizar_expensas_propietarios(NEW.id_consorcio, id_pagos_periodo_actual);
 END //
 
--- Trigger para que ante el cambio de un gasto, se actualice el monto_total en h_pagos_periodo y llame al sp_actualizar_expensas_propietarios.
-CREATE TRIGGER trigger_post_actualizar_gasto
+CREATE TRIGGER after_update_h_gastos
 AFTER UPDATE ON h_Gastos
 FOR EACH ROW
 BEGIN
-    DECLARE diferencia DECIMAL(10,2);
-    DECLARE monto_total_actual DECIMAL(10,2);
-    
-    -- Calcular la diferencia entre el nuevo costo total y el costo total anterior
-    SET diferencia = NEW.costo_total - OLD.costo_total;
+    -- Verificar si el costo_total ha cambiado
+    IF OLD.costo_total != NEW.costo_total THEN
+        -- Actualizar el monto total en la tabla h_Pagos_Periodo
+        UPDATE h_Pagos_Periodo
+        SET monto_total = monto_total - OLD.costo_total + NEW.costo_total
+        WHERE id_pagos_periodo = OLD.id_pagos_periodo;
 
-    -- Actualizar el monto_total en h_Pagos_Periodo sumando la diferencia
-    UPDATE h_Pagos_Periodo
-    SET monto_total = monto_total + diferencia
-    WHERE id_pagos_periodo = NEW.id_pagos_periodo;
-    
-    -- Obtener el nuevo monto_total
-    SELECT monto_total INTO monto_total_actual
-    FROM h_Pagos_Periodo
-    WHERE id_pagos_periodo = NEW.id_pagos_periodo;
-
-    -- Llamar al procedimiento para actualizar las expensas
-    CALL sp_actualizar_expensas_propietarios(NEW.id_pagos_periodo);
+        -- Llamar al procedimiento para actualizar las expensas de los propietarios
+        CALL procedimiento_actualizar_expensas_propietarios(OLD.id_consorcio, OLD.id_pagos_periodo);
+    END IF;
 END //
 
 DELIMITER ;
+
