@@ -71,12 +71,11 @@ CREATE TABLE h_Reclamos (
 	FOREIGN KEY (id_administrador) REFERENCES Administradores(id_administrador)
 );
 
--- Creación tabla de Pagos por Período (asociados a un consorcio en un mes y año)
+-- Creación tabla de Pagos por Período (asociados a un consorcio en un PERIODO)
 CREATE TABLE h_Pagos_Periodo (
 	id_pagos_periodo INT AUTO_INCREMENT PRIMARY KEY,
     id_consorcio INT NOT NULL,
-	mes ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre') NOT NULL,
-    anio YEAR NOT NULL,
+	periodo VARCHAR(20) NOT NULL,
     monto_total DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (id_consorcio) REFERENCES Consorcios(id_consorcio)
 );
@@ -86,7 +85,7 @@ CREATE TABLE h_Gastos (
     id_gasto INT AUTO_INCREMENT PRIMARY KEY,
     id_proveedor INT NOT NULL,
     id_consorcio INT NOT NULL,
-    id_pagos_periodo INT NULL,
+    id_pagos_periodo INT NOT NULL DEFAULT 0,
     costo_total DECIMAL(10,2) NOT NULL,
     fecha DATE NOT NULL,
     concepto VARCHAR(200) NOT NULL,
@@ -120,23 +119,23 @@ BEGIN
     RETURN (monto_total * porcentaje_fiscal / 100);
 END //
 
--- Funcion para obtener el más reciente período (en formato: mes-anio) de pago por período cargado respecto a un ID consorcio pasado como parametro.
-CREATE FUNCTION funcion_obtener_periodo_reciente(id_consorcio INT)
+-- Función para obtener el período de un pago por período en varchar(20) con formato Mes-XXXX (con XXXX siendo el anio)
+CREATE FUNCTION funcion_obtener_periodo_reciente(id_consorcio_pasado INT)
 RETURNS VARCHAR(20)
 READS SQL DATA
 BEGIN
-    DECLARE periodo VARCHAR(20);
+    DECLARE periodo_buscado VARCHAR(20);
 
-    SELECT CONCAT(mes, '-', anio)
-    INTO periodo
+    SELECT periodo
+    INTO periodo_buscado
     FROM h_Pagos_Periodo
-    WHERE id_consorcio = id_consorcio
-    ORDER BY anio DESC, 
-             FIELD(mes, 'Diciembre', 'Noviembre', 'Octubre', 'Septiembre', 'Agosto', 'Julio', 'Junio', 'Mayo', 'Abril', 'Marzo', 'Febrero', 'Enero') DESC
+    WHERE id_consorcio = id_consorcio_pasado
+    ORDER BY STR_TO_DATE(periodo, '%M-%Y') DESC
     LIMIT 1;
 
-    RETURN periodo;
+    RETURN periodo_buscado;
 END //
+
 
 -- Función para calcular el total de gastos desde una fecha específica de un consorcio (REVISAR POSIBLE USO DE h_Pagos_Periodo)
 CREATE FUNCTION funcion_obtener_total_gastos_consorcio_desde_fecha(consorcio_id INT, fecha_inicio DATE) RETURNS DECIMAL(10,2)
@@ -160,18 +159,18 @@ BEGIN
 END //
 
 -- Función para obtener el período de un pago por período en varchar(20) con formato Mes-XXXX (con XXXX siendo el anio)
-CREATE FUNCTION funcion_obtener_periodo(id_pagos_periodo INT) 
+CREATE FUNCTION funcion_obtener_periodo(id_pagos_periodo_nuevo INT) 
 RETURNS VARCHAR(20)
 READS SQL DATA
 BEGIN
-    DECLARE periodo VARCHAR(20);
+    DECLARE periodo_nuevo VARCHAR(20);
     
-    SELECT CONCAT(mes, '-', anio)
-    INTO periodo
+    SELECT periodo
+    INTO periodo_nuevo
     FROM h_Pagos_Periodo
-    WHERE id_pagos_periodo = id_pagos_periodo;
+    WHERE id_pagos_periodo = id_pagos_periodo_nuevo;
 
-    RETURN periodo;
+    RETURN periodo_nuevo;
 END //
 
 -- Funcion que en base a una fecha devuelve un período. El punto de corte es el 25 de cada mes, a partir del 26 es el próximo mes.
@@ -228,20 +227,17 @@ RETURNS DATE
 DETERMINISTIC
 BEGIN
     DECLARE fecha_vencimiento_nuevo DATE;
-    DECLARE mes_nuevo ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre');
+    DECLARE periodo_nuevo VARCHAR(20);
+    
+	DECLARE mes_nuevo ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre');
     DECLARE anio_nuevo YEAR;
-
-    -- Obtener el mes y el año del período de pagos
-    SELECT
-        mes,
-        anio
-    INTO
-        mes_nuevo,
-        anio_nuevo
-    FROM
-        h_Pagos_Periodo
-    WHERE
-        id_pagos_periodo = id_pagos_periodo_nuevo;
+    
+	SELECT periodo INTO periodo_nuevo
+    FROM h_Pagos_periodo
+    WHERE id_pagos_periodo = id_pagos_periodo_nuevo;
+    
+	SET mes_nuevo = SUBSTRING_INDEX(periodo_nuevo, '-', 1);
+    SET anio_nuevo = CAST(SUBSTRING_INDEX(periodo_nuevo, '-', -1) AS UNSIGNED);
 
     -- Asignar la fecha de vencimiento basada en el mes y año
     CASE mes_nuevo
@@ -429,15 +425,14 @@ SELECT
     c.id_consorcio,
     c.direccion AS consorcio,
     pp.id_pagos_periodo,
-    pp.mes,
-    pp.anio,
+    pp.periodo,
     pp.monto_total
 FROM 
     Consorcios c
 JOIN 
     h_Pagos_Periodo pp ON c.id_consorcio = pp.id_consorcio
 WHERE 
-    CONCAT(pp.mes, '-', pp.anio) = funcion_obtener_periodo_reciente(c.id_consorcio);
+    pp.periodo = funcion_obtener_periodo_reciente(c.id_consorcio);
 
 -- Vista que muestra los últimos 100 gastos (h_Gastos) para cada consorcio, ordenados por sus períodos
 CREATE VIEW vista_ultimos_100_gastos_consorcio AS
@@ -503,21 +498,16 @@ BEFORE INSERT ON h_Gastos
 FOR EACH ROW
 BEGIN
     DECLARE id_pago_periodo_existente INT;
-    DECLARE mes_nuevo VARCHAR(20);
-    DECLARE anio_nuevo YEAR;
     DECLARE nuevo_periodo VARCHAR(20);
 
     -- Obtener el período basado en la fecha del nuevo gasto
     SET nuevo_periodo = funcion_obtener_periodo_por_fecha(NEW.fecha);
-    SET mes_nuevo = SUBSTRING_INDEX(nuevo_periodo, '-', 1);
-    SET anio_nuevo = SUBSTRING_INDEX(nuevo_periodo, '-', -1);
 
     -- Verificar si ya existe un registro en h_Pagos_Periodo para el consorcio y el período
     SELECT id_pagos_periodo INTO id_pago_periodo_existente
     FROM h_Pagos_Periodo
-    WHERE id_consorcio = NEW.id_consorcio
-      AND mes = mes_nuevo
-      AND anio = anio_nuevo;
+    WHERE id_consorcio = NEW.id_consorcio AND periodo = nuevo_periodo
+	LIMIT 1;
 
     -- Si existe un registro, actualizar id_pagos_periodo del nuevo gasto y el monto total del período
     IF id_pago_periodo_existente IS NOT NULL THEN
@@ -527,8 +517,8 @@ BEGIN
         WHERE id_pagos_periodo = id_pago_periodo_existente;
     ELSE
         -- Si no existe un registro, crear una nueva entrada en h_Pagos_Periodo
-        INSERT INTO h_Pagos_Periodo (id_consorcio, mes, anio, monto_total)
-        VALUES (NEW.id_consorcio, mes_nuevo, anio_nuevo, NEW.costo_total);
+        INSERT INTO h_Pagos_Periodo (id_consorcio, periodo, monto_total)
+        VALUES (NEW.id_consorcio, nuevo_periodo, NEW.costo_total);
         
         -- Obtener el id_pagos_periodo recién creado
         SET NEW.id_pagos_periodo = LAST_INSERT_ID();
