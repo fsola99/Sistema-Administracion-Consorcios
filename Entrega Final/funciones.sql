@@ -77,21 +77,18 @@ BEGIN
     DECLARE anio INT;
 
     -- Obtener el mes y el año de la fecha proporcionada
-    SET mes_actual = MONTHNAME(fecha);
-    SET anio_actual = YEAR(fecha);
+    SET mes = MONTH(fecha);
+    SET anio = YEAR(fecha);
+    
+    SET anio_actual = anio;
 
     -- Ajustar el mes y el año según la lógica de los períodos
     IF DAY(fecha) >= 26 THEN
-        SET mes = MONTH(fecha) + 1;
-        SET anio = anio_actual;
-        
+        SET mes = mes + 1;        
         IF mes = 13 THEN
             SET mes = 1;
-            SET anio = anio_actual + 1;
+            SET anio_actual = anio + 1;
         END IF;
-    ELSE
-        SET mes = MONTH(fecha);
-        SET anio = anio_actual;
     END IF;
 
     -- Formatear el mes al nombre en español
@@ -111,7 +108,7 @@ BEGIN
     END CASE;
 
     -- Formatear el resultado en el formato "Mes-año"
-    SET periodo = CONCAT(mes_actual, '-', anio);
+    SET periodo = CONCAT(mes_actual, '-', anio_actual);
 
     RETURN periodo;
 END //
