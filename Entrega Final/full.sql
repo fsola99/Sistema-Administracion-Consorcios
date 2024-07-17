@@ -457,6 +457,7 @@ LIMIT 100;
 
 DELIMITER  //
 
+-- SP para crear y actualizar las expensas de los propietarios asociados a un consorcio en base a un id_pagos_periodo
 CREATE PROCEDURE sp_crear_actualizar_expensas_propietarios(
     IN id_consorcio_nuevo INT,
     IN id_pagos_periodo_nuevo INT
@@ -528,6 +529,7 @@ BEGIN
     CALL sp_crear_actualizar_expensas_propietarios(NEW.id_consorcio, NEW.id_pagos_periodo);
 END //
 
+-- Trigger para actualizar el monto_total del pago período y expensas al actualizar un gasto.
 CREATE TRIGGER after_update_h_gastos
 AFTER UPDATE ON h_Gastos
 FOR EACH ROW
