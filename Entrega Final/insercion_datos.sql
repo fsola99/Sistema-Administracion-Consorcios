@@ -1150,6 +1150,6 @@ insert into h_Reclamos (id_reclamo, id_propietario, id_consorcio, id_administrad
 insert into h_Reclamos (id_reclamo, id_propietario, id_consorcio, id_administrador, descripcion, fecha) values (100, 7, 5, 2, 'las paredes están sucias', '2023-11-17');
 
 -- SELECT * FROM consorcios;
--- SELECT * FROM h_Pagos_Periodo;
+SELECT * FROM h_Pagos_Periodo;
 -- SELECT * FROM h_Gastos;
 -- SELECT * FROM h_Expensas;

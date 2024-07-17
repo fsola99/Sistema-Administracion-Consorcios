@@ -174,5 +174,3 @@ BEGIN
 END //
 
 DELIMITER ;
-
-
