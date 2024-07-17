@@ -7,21 +7,16 @@ BEFORE INSERT ON h_Gastos
 FOR EACH ROW
 BEGIN
     DECLARE id_pago_periodo_existente INT;
-    DECLARE mes_nuevo VARCHAR(20);
-    DECLARE anio_nuevo YEAR;
     DECLARE nuevo_periodo VARCHAR(20);
 
     -- Obtener el período basado en la fecha del nuevo gasto
     SET nuevo_periodo = funcion_obtener_periodo_por_fecha(NEW.fecha);
-    SET mes_nuevo = SUBSTRING_INDEX(nuevo_periodo, '-', 1);
-    SET anio_nuevo = SUBSTRING_INDEX(nuevo_periodo, '-', -1);
 
     -- Verificar si ya existe un registro en h_Pagos_Periodo para el consorcio y el período
     SELECT id_pagos_periodo INTO id_pago_periodo_existente
     FROM h_Pagos_Periodo
-    WHERE id_consorcio = NEW.id_consorcio
-      AND mes = mes_nuevo
-      AND anio = anio_nuevo;
+    WHERE id_consorcio = NEW.id_consorcio AND periodo = nuevo_periodo
+	LIMIT 1;
 
     -- Si existe un registro, actualizar id_pagos_periodo del nuevo gasto y el monto total del período
     IF id_pago_periodo_existente IS NOT NULL THEN
@@ -31,8 +26,8 @@ BEGIN
         WHERE id_pagos_periodo = id_pago_periodo_existente;
     ELSE
         -- Si no existe un registro, crear una nueva entrada en h_Pagos_Periodo
-        INSERT INTO h_Pagos_Periodo (id_consorcio, mes, anio, monto_total)
-        VALUES (NEW.id_consorcio, mes_nuevo, anio_nuevo, NEW.costo_total);
+        INSERT INTO h_Pagos_Periodo (id_consorcio, periodo, monto_total)
+        VALUES (NEW.id_consorcio, nuevo_periodo, NEW.costo_total);
         
         -- Obtener el id_pagos_periodo recién creado
         SET NEW.id_pagos_periodo = LAST_INSERT_ID();

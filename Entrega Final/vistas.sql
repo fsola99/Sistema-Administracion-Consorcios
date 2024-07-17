@@ -146,15 +146,14 @@ SELECT
     c.id_consorcio,
     c.direccion AS consorcio,
     pp.id_pagos_periodo,
-    pp.mes,
-    pp.anio,
+    pp.periodo,
     pp.monto_total
 FROM 
     Consorcios c
 JOIN 
     h_Pagos_Periodo pp ON c.id_consorcio = pp.id_consorcio
 WHERE 
-    CONCAT(pp.mes, '-', pp.anio) = funcion_obtener_periodo_reciente(c.id_consorcio);
+    pp.periodo = funcion_obtener_periodo_reciente(c.id_consorcio);
 
 -- Vista que muestra los últimos 100 gastos (h_Gastos) para cada consorcio, ordenados por sus períodos
 CREATE VIEW vista_ultimos_100_gastos_consorcio AS

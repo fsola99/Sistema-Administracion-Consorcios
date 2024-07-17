@@ -71,12 +71,11 @@ CREATE TABLE h_Reclamos (
 	FOREIGN KEY (id_administrador) REFERENCES Administradores(id_administrador)
 );
 
--- Creación tabla de Pagos por Período (asociados a un consorcio en un mes y año)
+-- Creación tabla de Pagos por Período (asociados a un consorcio en un PERIODO)
 CREATE TABLE h_Pagos_Periodo (
 	id_pagos_periodo INT AUTO_INCREMENT PRIMARY KEY,
     id_consorcio INT NOT NULL,
-	mes ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre') NOT NULL,
-    anio YEAR NOT NULL,
+	periodo VARCHAR(20) NOT NULL,
     monto_total DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (id_consorcio) REFERENCES Consorcios(id_consorcio)
 );

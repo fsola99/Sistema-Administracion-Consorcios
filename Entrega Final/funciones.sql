@@ -11,23 +11,23 @@ BEGIN
     RETURN (monto_total * porcentaje_fiscal / 100);
 END //
 
--- Funcion para obtener el más reciente período (en formato: mes-anio) de pago por período cargado respecto a un ID consorcio pasado como parametro.
-CREATE FUNCTION funcion_obtener_periodo_reciente(id_consorcio INT)
+-- Función para obtener el período de un pago por período en varchar(20) con formato Mes-XXXX (con XXXX siendo el anio)
+CREATE FUNCTION funcion_obtener_periodo_reciente(id_consorcio_pasado INT)
 RETURNS VARCHAR(20)
 READS SQL DATA
 BEGIN
-    DECLARE periodo VARCHAR(20);
+    DECLARE periodo_buscado VARCHAR(20);
 
-    SELECT CONCAT(mes, '-', anio)
-    INTO periodo
+    SELECT periodo
+    INTO periodo_buscado
     FROM h_Pagos_Periodo
-    WHERE id_consorcio = id_consorcio
-    ORDER BY anio DESC, 
-             FIELD(mes, 'Diciembre', 'Noviembre', 'Octubre', 'Septiembre', 'Agosto', 'Julio', 'Junio', 'Mayo', 'Abril', 'Marzo', 'Febrero', 'Enero') DESC
+    WHERE id_consorcio = id_consorcio_pasado
+    ORDER BY STR_TO_DATE(periodo, '%M-%Y') DESC
     LIMIT 1;
 
-    RETURN periodo;
+    RETURN periodo_buscado;
 END //
+
 
 -- Función para calcular el total de gastos desde una fecha específica de un consorcio (REVISAR POSIBLE USO DE h_Pagos_Periodo)
 CREATE FUNCTION funcion_obtener_total_gastos_consorcio_desde_fecha(consorcio_id INT, fecha_inicio DATE) RETURNS DECIMAL(10,2)
@@ -51,18 +51,18 @@ BEGIN
 END //
 
 -- Función para obtener el período de un pago por período en varchar(20) con formato Mes-XXXX (con XXXX siendo el anio)
-CREATE FUNCTION funcion_obtener_periodo(id_pagos_periodo INT) 
+CREATE FUNCTION funcion_obtener_periodo(id_pagos_periodo_nuevo INT) 
 RETURNS VARCHAR(20)
 READS SQL DATA
 BEGIN
-    DECLARE periodo VARCHAR(20);
+    DECLARE periodo_nuevo VARCHAR(20);
     
-    SELECT CONCAT(mes, '-', anio)
-    INTO periodo
+    SELECT periodo
+    INTO periodo_nuevo
     FROM h_Pagos_Periodo
-    WHERE id_pagos_periodo = id_pagos_periodo;
+    WHERE id_pagos_periodo = id_pagos_periodo_nuevo;
 
-    RETURN periodo;
+    RETURN periodo_nuevo;
 END //
 
 -- Funcion que en base a una fecha devuelve un período. El punto de corte es el 25 de cada mes, a partir del 26 es el próximo mes.
@@ -119,20 +119,17 @@ RETURNS DATE
 DETERMINISTIC
 BEGIN
     DECLARE fecha_vencimiento_nuevo DATE;
-    DECLARE mes_nuevo ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre');
+    DECLARE periodo_nuevo VARCHAR(20);
+    
+	DECLARE mes_nuevo ENUM('Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre');
     DECLARE anio_nuevo YEAR;
-
-    -- Obtener el mes y el año del período de pagos
-    SELECT
-        mes,
-        anio
-    INTO
-        mes_nuevo,
-        anio_nuevo
-    FROM
-        h_Pagos_Periodo
-    WHERE
-        id_pagos_periodo = id_pagos_periodo_nuevo;
+    
+	SELECT periodo INTO periodo_nuevo
+    FROM h_Pagos_periodo
+    WHERE id_pagos_periodo = id_pagos_periodo_nuevo;
+    
+	SET mes_nuevo = SUBSTRING_INDEX(periodo_nuevo, '-', 1);
+    SET anio_nuevo = CAST(SUBSTRING_INDEX(periodo_nuevo, '-', -1) AS UNSIGNED);
 
     -- Asignar la fecha de vencimiento basada en el mes y año
     CASE mes_nuevo
